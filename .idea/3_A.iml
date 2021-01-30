@@ -3,9 +3,11 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/.idea/codeStyles" />
+      <excludeFolder url="file://$MODULE_DIR$/08_Autoloading/vendor" />
       <excludeFolder url="file://$MODULE_DIR$/08_Autoloading/vendor/composer" />
       <excludeFolder url="file://$MODULE_DIR$/08_Autoloading/vendor/mustache/mustache" />
       <excludeFolder url="file://$MODULE_DIR$/08_Autoloading/vendor/tracy/tracy" />
+      <excludeFolder url="file://$MODULE_DIR$/09_Small_viewer/vendor" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
