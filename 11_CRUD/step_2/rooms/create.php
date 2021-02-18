@@ -2,7 +2,7 @@
 require "../includes/bootstrap.inc.php";
 
 
-final class CreateRoomPage extends BaseDBPage {
+final class CreateRoomPage extends BaseCRUDPage {
 
     const STATE_FORM_REQUESTED = 1;
     const STATE_FORM_SENT = 2;
@@ -11,9 +11,7 @@ final class CreateRoomPage extends BaseDBPage {
     const RESULT_SUCCESS = 1;
     const RESULT_FAIL = 2;
 
-    private int $state;
-    private int $result = 0;
-    private array $room;
+    private RoomModel $room;
 
     protected function setUp(): void
     {
@@ -33,15 +31,21 @@ final class CreateRoomPage extends BaseDBPage {
             //načíst data
             $this->room = $this->readPost();
             //validovat data
-            if ($this->isDataValid($this->room)){
+            if ($this->room->isValid()){
+
+                $token = bin2hex( random_bytes(20) );
+
                 //uložit a přesměrovat
-                if ($this->insert($this->room)) {
+                if ($this->room->insert()) {
                     //přesměruj se zprávou "úspěch"
-                    $this->redirect(self::RESULT_SUCCESS);
+                    $this->sessionStorage->set($token, ['result' => self::RESULT_SUCCESS]);
                 } else {
                     //přesměruj se zprávou "neúspěch"
-                    $this->redirect(self::RESULT_FAIL);
+                    $this->sessionStorage->set($token, ['result' => self::RESULT_FAIL]);
                 }
+
+                $this->redirect($token);
+
             } else {
                 //jít na formulář nebo
                 $this->state = self::STATE_FORM_REQUESTED;
@@ -50,7 +54,7 @@ final class CreateRoomPage extends BaseDBPage {
         } else {
             //přejít na formulář
             $this->title = "Založit místnost";
-            $this->room = ['name' => '', 'no' => '', 'phone' => null];
+            $this->room = new RoomModel();
         }
 
     }
@@ -68,17 +72,10 @@ final class CreateRoomPage extends BaseDBPage {
         }
     }
 
-    private function getState() : int {
+    protected function getState() : int {
         //rozpoznání processed
-        $result = filter_input(INPUT_GET, 'result', FILTER_VALIDATE_INT);
-
-        if ($result === self::RESULT_SUCCESS) {
-            $this->result = self::RESULT_SUCCESS;
+        if ($this->isProcessed())
             return self::STATE_PROCESSED;
-        } elseif ($result === self::RESULT_FAIL) {
-            $this->result = self::RESULT_FAIL;
-            return self::STATE_PROCESSED;
-        }
 
         $action = filter_input(INPUT_POST, 'action');
         if ($action === 'create') {
@@ -88,7 +85,7 @@ final class CreateRoomPage extends BaseDBPage {
         return self::STATE_FORM_REQUESTED;
     }
 
-    private function readPost() : array {
+    private function readPost() : RoomModel {
         $room = [];
         $room['name'] = filter_input(INPUT_POST, 'name');
         $room['no'] = filter_input(INPUT_POST, 'no');
@@ -97,34 +94,7 @@ final class CreateRoomPage extends BaseDBPage {
         if (!$room['phone'])
             $room['phone'] = null;
 
-        return $room;
-    }
-
-    private function isDataValid(array $room) : bool {
-        if (!$room['name'])
-            return false;
-
-        if (!$room['no'])
-            return false;
-
-        return true;
-    }
-
-    private function insert(array $room) {
-        $query = "INSERT INTO room (name, no, phone) VALUES (:name, :no, :phone)";
-
-        $stmt = $this->pdo->prepare($query);
-        $stmt->bindParam(':name', $room['name']);
-        $stmt->bindParam(':no', $room['no']);
-        $stmt->bindParam(':phone', $room['phone']);
-
-        return $stmt->execute();
-    }
-
-    private function redirect(int $result) : void {
-        $location = strtok($_SERVER['REQUEST_URI'], '?');
-        header("Location: {$location}?result={$result}");
-        exit;
+        return new RoomModel($room);
     }
 
 }

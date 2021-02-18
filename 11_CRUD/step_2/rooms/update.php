@@ -2,7 +2,7 @@
 require "../includes/bootstrap.inc.php";
 
 
-final class UpdateRoomPage extends BaseDBPage {
+final class UpdateRoomPage extends BaseCRUDPage {
 
     const STATE_FORM_REQUESTED = 1;
     const STATE_FORM_SENT = 2;
@@ -11,9 +11,7 @@ final class UpdateRoomPage extends BaseDBPage {
     const RESULT_SUCCESS = 1;
     const RESULT_FAIL = 2;
 
-    private int $state;
-    private int $result = 0;
-    private array $room;
+    private RoomModel $room;
 
     protected function setUp(): void
     {
@@ -33,15 +31,21 @@ final class UpdateRoomPage extends BaseDBPage {
             //načíst data
             $this->room = $this->readPost();
             //validovat data
-            if ($this->isDataValid($this->room)){
+            if ($this->room->isValid()){
                 //uložit a přesměrovat
-                if ($this->update($this->room)) {
+                $token = bin2hex( random_bytes(20) );
+
+                //uložit a přesměrovat
+                if ($this->room->update()) {
                     //přesměruj se zprávou "úspěch"
-                    $this->redirect(self::RESULT_SUCCESS);
+                    $this->sessionStorage->set($token, ['result' => self::RESULT_SUCCESS]);
                 } else {
                     //přesměruj se zprávou "neúspěch"
-                    $this->redirect(self::RESULT_FAIL);
+                    $this->sessionStorage->set($token, ['result' => self::RESULT_FAIL]);
                 }
+
+                $this->redirect($token);
+
             } else {
                 //jít na formulář nebo
                 $this->state = self::STATE_FORM_REQUESTED;
@@ -53,7 +57,7 @@ final class UpdateRoomPage extends BaseDBPage {
             $room_id = $this->findId();
             if (!$room_id)
                 throw new RequestException(400);
-            $this->room = $this->readDB($room_id);
+            $this->room = RoomModel::getById($room_id);
             if (!$this->room)
                 throw new RequestException(404);
         }
@@ -73,17 +77,10 @@ final class UpdateRoomPage extends BaseDBPage {
         }
     }
 
-    private function getState() : int {
+    protected function getState() : int {
         //rozpoznání processed
-        $result = filter_input(INPUT_GET, 'result', FILTER_VALIDATE_INT);
-
-        if ($result === self::RESULT_SUCCESS) {
-            $this->result = self::RESULT_SUCCESS;
+        if ($this->isProcessed())
             return self::STATE_PROCESSED;
-        } elseif ($result === self::RESULT_FAIL) {
-            $this->result = self::RESULT_FAIL;
-            return self::STATE_PROCESSED;
-        }
 
         $action = filter_input(INPUT_POST, 'action');
         if ($action === 'update') {
@@ -98,7 +95,7 @@ final class UpdateRoomPage extends BaseDBPage {
         return $room_id;
     }
 
-    private function readPost() : array {
+    private function readPost() : RoomModel {
         $room = [];
 
         $room['room_id'] = filter_input(INPUT_POST, 'room_id', FILTER_VALIDATE_INT);
@@ -109,47 +106,7 @@ final class UpdateRoomPage extends BaseDBPage {
         if (!$room['phone'])
             $room['phone'] = null;
 
-        return $room;
-    }
-
-    private function readDB(int $room_id) : array {
-        $query = "SELECT room_id, name, no, phone FROM room WHERE room_id = :room_id;";
-
-        $stmt = $this->pdo->prepare($query);
-        $stmt->bindParam(':room_id', $room_id);
-        $stmt->execute();
-
-        $room = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        return $room;
-    }
-
-    private function isDataValid(array $room) : bool {
-        if (!$room['name'])
-            return false;
-
-        if (!$room['no'])
-            return false;
-
-        return true;
-    }
-
-    private function update(array $room) {
-        $query = "UPDATE room SET name = :name, phone = :phone, no = :no WHERE room_id = :room_id";
-
-        $stmt = $this->pdo->prepare($query);
-        $stmt->bindParam(':room_id', $room['room_id']);
-        $stmt->bindParam(':name', $room['name']);
-        $stmt->bindParam(':no', $room['no']);
-        $stmt->bindParam(':phone', $room['phone']);
-
-        return $stmt->execute();
-    }
-
-    private function redirect(int $result) : void {
-        $location = strtok($_SERVER['REQUEST_URI'], '?');
-        header("Location: {$location}?result={$result}");
-        exit;
+        return new RoomModel($room);
     }
 
 }
