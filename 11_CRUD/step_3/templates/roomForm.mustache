@@ -21,7 +21,7 @@
         {{/create}}
         {{#update}}
             <input type="hidden" name="action" value="update">
-            <input type="hidden" name="room_id" value="{{room.getRoomId}}">
+            <input type="hidden" name="room_id" value="{{room.getPrimaryKey}}">
             <input type="submit" value="Upravit" class="btn btn-primary">
         {{/update}}
     </div>
